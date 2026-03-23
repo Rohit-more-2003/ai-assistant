@@ -1,5 +1,6 @@
 # -------------- SETUP ----------------
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -11,6 +12,7 @@ import os
 load_dotenv()
 
 app = Flask(__name__)
+CORS(app=app)   
 
 gemini_key = os.getenv("GEMINI_API_KEY")
 llm_model = "gemini-2.5-flash-lite"

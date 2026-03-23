@@ -1,3 +1,6 @@
+# -------------- SETUP ----------------
+from flask import Flask, request, jsonify
+
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage, AIMessage
@@ -5,8 +8,9 @@ from langchain_core.messages import HumanMessage, AIMessage
 from dotenv import load_dotenv
 import os
 
-# -------------- SETUP ----------------
 load_dotenv()
+
+app = Flask(__name__)
 
 gemini_key = os.getenv("GEMINI_API_KEY")
 llm_model = "gemini-2.5-flash-lite"
@@ -33,23 +37,25 @@ prompt = ChatPromptTemplate([
 
 chain = prompt | llm
 
-# -------------- CHATBOT ---------------
-print("AI: Hi, I am your personal assistant, how can I help you today?")
-
+# -------------- MEMORY ---------------
 history = []
-while True:
-    user_input = input("You: ")
-    if user_input == "exit":
-        break
+
+# -------------- ROUTES ---------------
+@app.route("/chat", methods=["POST"])
+def chat():
+    data = request.get_json()
+    user_input = data.get("message")
+    
+    history.append(HumanMessage(content=user_input))
 
     response = chain.invoke({
         "input": user_input,
         "history": history
     })
 
-    print(f"AI: {response.content}")
-
-    history.append(HumanMessage(content=user_input))
     history.append(AIMessage(content=response.content))
 
-    # print(f"History: {history}")
+    return jsonify({"response": response.content})
+
+if __name__ == "__main__":
+    app.run(debug=True)

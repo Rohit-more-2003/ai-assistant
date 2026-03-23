@@ -45,19 +45,23 @@ history = []
 # -------------- ROUTES ---------------
 @app.route("/chat", methods=["POST"])
 def chat():
-    data = request.get_json()
-    user_input = data.get("message")
+    try:
+        data = request.get_json()
+        user_input = data.get("message")
+        
+        history.append(HumanMessage(content=user_input))
+
+        response = chain.invoke({
+            "input": user_input,
+            "history": history
+        })
+
+        history.append(AIMessage(content=response.content))
+
+        return jsonify({"response": response.content})
     
-    history.append(HumanMessage(content=user_input))
-
-    response = chain.invoke({
-        "input": user_input,
-        "history": history
-    })
-
-    history.append(AIMessage(content=response.content))
-
-    return jsonify({"response": response.content})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(debug=True)

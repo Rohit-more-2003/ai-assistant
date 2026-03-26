@@ -39,9 +39,12 @@ export default function App() {
 
       <div className="chat-box">
         {messages.map((msg, index) => (
-          <div key={index}>
-            <strong>{msg.role}:</strong> {msg.content}
-          </div>
+          <div 
+            key={index}
+            className={msg.role === "user" ? "userMessage" : "aiMessage"}
+          >
+            {msg.content}
+          </div>  
         ))}
       </div>
 

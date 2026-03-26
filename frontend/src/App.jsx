@@ -8,13 +8,16 @@ export default function App() {
   // ------------------ STATE ------------------
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
 
   // ------------------ FUNCTIONS ------------------
   const handleSend = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || loading) return;
 
     const userMessage = { role: "user", content: input };
     setMessages((prev) => [...prev, userMessage]);  // prev react provided variable, here, prev = previous state value of messages 
+
+    setLoading(true);
 
     const res = await fetch("http://127.0.0.1:5000/chat", {
       method: "POST",
@@ -30,6 +33,7 @@ export default function App() {
     setMessages((prev) => [...prev, aiMessage]);
 
     setInput("");
+    setLoading(false);
   };
 
   const handleKeyDown = (e) => {
@@ -60,9 +64,16 @@ export default function App() {
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="Type message..."
+        disabled={loading}
       />
 
-      <button className="button" onClick={handleSend}>Send</button>
+      <button 
+        className="button" 
+        onClick={handleSend}
+        disabled={loading}
+      >
+        {loading ? "Loading" : "Enter"}
+      </button>
     </div>
   );
 };

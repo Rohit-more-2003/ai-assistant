@@ -1,5 +1,6 @@
 // ------------------ IMPORTS ------------------
 import { useState } from "react";
+import "./App.css"
 
 // ------------------ COMPONENT ------------------
 export default function App() {
@@ -33,10 +34,10 @@ export default function App() {
 
   // ------------------ UI ------------------
   return (
-    <div style={{ padding: "20px" }}>
-      <h1>AI Chat</h1>
+    <div className="container">
+      <h1 className="title">AI Chat</h1>
 
-      <div>
+      <div className="chat-box">
         {messages.map((msg, index) => (
           <div key={index}>
             <strong>{msg.role}:</strong> {msg.content}
@@ -45,12 +46,13 @@ export default function App() {
       </div>
 
       <input
+        className="input"
         value={input}
         onChange={(e) => setInput(e.target.value)}
         placeholder="Type message..."
       />
 
-      <button onClick={handleSend}>Send</button>
+      <button className="button" onClick={handleSend}>Send</button>
     </div>
   );
 };

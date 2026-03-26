@@ -1,22 +1,30 @@
 .container{
-    padding: 20px;
+    max-height: 100vh;
+    display: flex;
+    flex-direction: column;
     font-family: Arial, Helvetica, sans-serif;
+    padding: 20px;
 }
 
 .title{
-    font-size: 24px;
+    font-size: 28px;
     margin-bottom: 20px;
+    align-items: center; /* by default for vertical, but if flex-direction is column, then for horizontal */
+    text-align: center;
 }
 
 .chat-box{
-    margin-bottom: 20px;
+    flex: 1;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
+    padding: 10px;
+    border: 1px solid #ccc;
 }
 
 .message{
-    margin-bottom: 10px;
     padding: 10px;
+    margin-bottom: 10px;
     border-radius: 10px;
     max-width: 60%;
 }

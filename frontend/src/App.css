@@ -39,12 +39,18 @@
     align-self: flex-start;
 }
 
+.input-row{
+    display: flex;
+    margin-top: 10px;
+    width: 80vw;
+}
+
 .input{
-    padding: 8px;
-    width: 400px;
+    float: 1;
+    padding: 10px;
 }
 
 .button{
-    padding: 8px;
+    padding: 10px;
     margin-left: 10px;
 }

@@ -69,22 +69,24 @@ export default function App() {
         <div ref={chatEndRef}></div>  {/* this div part calls chatEndRef to latest message */}
       </div>
 
-      <input
-        className="input"
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder="Type message..."
-        disabled={loading}
-      />
+      <div className="input-row">
+        <input
+          className="input"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Type message..."
+          disabled={loading}
+        />
 
-      <button 
-        className="button" 
-        onClick={handleSend}
-        disabled={loading}
-      >
-        {loading ? "Loading" : "Enter"}
-      </button>
+        <button 
+          className="button" 
+          onClick={handleSend}
+          disabled={loading}
+        >
+          {loading ? "Loading" : "Enter"}
+        </button>
+      </div>
     </div>
   );
 };

@@ -1,5 +1,5 @@
 // ------------------ IMPORTS ------------------
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import "./App.css"
 
 // ------------------ COMPONENT ------------------
@@ -9,6 +9,8 @@ export default function App() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const chatEndRef = useRef(null);  // initialize reference variable pointing towards end of chat
 
   // ------------------ FUNCTIONS ------------------
   const handleSend = async () => {
@@ -42,6 +44,14 @@ export default function App() {
     }
   }
 
+  // ----------------- Effects -----------------
+  
+  // chatEndRef points to last element
+  // when messages change => useEffect(..., [messages]) => scrollIntoView() triggered showing latest chat
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({behaviour: "smooth"});
+  }, [messages]);
+
   // ------------------ UI ------------------
   return (
     <div className="container">
@@ -56,6 +66,7 @@ export default function App() {
             {msg.content}
           </div>  
         ))}
+        <div ref={chatEndRef}></div>  {/* this div part calls chatEndRef to latest message */}
       </div>
 
       <input

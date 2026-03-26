@@ -32,6 +32,12 @@ export default function App() {
     setInput("");
   };
 
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter"){
+      handleSend();
+    }
+  }
+
   // ------------------ UI ------------------
   return (
     <div className="container">
@@ -52,6 +58,7 @@ export default function App() {
         className="input"
         value={input}
         onChange={(e) => setInput(e.target.value)}
+        onKeyDown={handleKeyDown}
         placeholder="Type message..."
       />
 

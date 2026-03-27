@@ -33,7 +33,8 @@ llm = ChatGoogleGenerativeAI(
     temperature=0.3
 )
 
-prompt = ChatPromptTemplate([
+# from_messages specifies that it is chat style prompt
+prompt = ChatPromptTemplate.from_messages([
     ("system", system_prompt),
     ("user", "{input}")
 ])
@@ -46,19 +47,20 @@ def get_response(user_input):
 
     return response.content
 
+# ------------- RESPONSE ROUTING -----------------
+def route_request(user_input):
+    """This function is created so that agent can decide which tool to use (for now: llm_response)"""
+    return get_response(user_input)
+
 # -------------- ROUTES ---------------
 @app.route("/chat", methods=["POST"])
 def chat():
-    try:
-        data = request.get_json()
-        user_input = data.get("message")
+    data = request.get_json()
+    user_input = data.get("message", "") # this means that get message if it exists or get default (here "")
 
-        response = get_response(user_input)
+    response = route_request(user_input)
 
-        return jsonify({"response": response.content})
-    
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    return jsonify({"response": response})
 
 if __name__ == "__main__":
     app.run(debug=True)

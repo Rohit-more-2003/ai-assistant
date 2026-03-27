@@ -6,18 +6,24 @@ import "./App.css"
 export default function App() {
 
   // ------------------ STATE ------------------
-  const [messages, setMessages] = useState([]);
+
+  // this will allow us to save chat in localStorage so we can continue where we left even when the chat is closed
+  const [messages, setMessages] = useState(() => {
+    const saved = localStorage.getItem("chat");
+    return saved ? JSON.parse(saved) : [];
+  });
+
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const chatEndRef = useRef(null);  // initialize reference variable pointing towards end of chat
+  const chatEndRef = useRef(null);
 
   // ------------------ FUNCTIONS ------------------
   const handleSend = async () => {
     if (!input.trim() || loading) return;
 
     const userMessage = { role: "user", content: input };
-    setMessages((prev) => [...prev, userMessage]);  // prev react provided variable, here, prev = previous state value of messages 
+    setMessages((prev) => [...prev, userMessage]);
 
     setLoading(true);
 
@@ -26,7 +32,7 @@ export default function App() {
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ message: input })
+      body: JSON.stringify({ message: input.trim() })
     });
 
     const data = await res.json();
@@ -45,9 +51,12 @@ export default function App() {
   }
 
   // ----------------- Effects -----------------
+
+  // this effect stores chat in localStorage on message change
+  useEffect(() => {
+    localStorage.setItem("chat", JSON.stringify(messages));
+  }, [messages]);
   
-  // chatEndRef points to last element
-  // when messages change => useEffect(..., [messages]) => scrollIntoView() triggered showing latest chat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({behaviour: "smooth"});
   }, [messages]);
@@ -57,7 +66,7 @@ export default function App() {
     <div className="container">
       <h1 className="title">AI Chat</h1>
 
-      <div className="chat-box">
+      <div className="chat-box"> {/* now messages load directly from localStorage and are not lost when page is refreshed or closed */}
         {messages.map((msg, index) => (
           <div 
             key={index}
@@ -66,7 +75,7 @@ export default function App() {
             {msg.content}
           </div>  
         ))}
-        <div ref={chatEndRef}></div>  {/* this div part calls chatEndRef to latest message */}
+        <div ref={chatEndRef}></div>
       </div>
 
       <div className="input-row">
@@ -84,7 +93,7 @@ export default function App() {
           onClick={handleSend}
           disabled={loading}
         >
-          {loading ? "Loading" : "Enter"}
+          {loading ? "Loading....." : "Enter"}
         </button>
       </div>
     </div>

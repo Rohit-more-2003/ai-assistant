@@ -25,18 +25,26 @@ export default function App() {
 
     setLoading(true);
 
-    const res = await fetch("http://127.0.0.1:5000/chat", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ message: input.trim() })
-    });
+    try{
+      const res = await fetch("http://127.0.0.1:5000/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ message: input.trim() })
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    const aiMessage = { role: "ai", content: data.response };
-    setMessages((prev) => [...prev, aiMessage]);
+      const aiMessage = { role: "ai", content: data.response };
+      setMessages((prev) => [...prev, aiMessage]);
+    }
+    catch(err){
+      setMessages((prev) => [
+        ...prev,
+        {role: "ai", content: "Error: Unable to connect to server."}
+      ]);
+    }
 
     setInput("");
     setLoading(false);

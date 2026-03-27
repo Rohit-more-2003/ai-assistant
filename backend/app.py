@@ -1,4 +1,4 @@
-# -------------- SETUP ----------------
+# -------------- IMPORTS ----------------
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
@@ -8,6 +8,8 @@ from langchain_core.messages import HumanMessage, AIMessage
 
 from dotenv import load_dotenv
 import os
+
+# --------------- SETUP ----------------------
 
 load_dotenv()
 
@@ -33,14 +35,16 @@ llm = ChatGoogleGenerativeAI(
 
 prompt = ChatPromptTemplate([
     ("system", system_prompt),
-    (MessagesPlaceholder(variable_name="history")),
     ("user", "{input}")
 ])
 
 chain = prompt | llm
 
-# -------------- MEMORY ---------------
-history = []
+# -------------- FUNCTIONS -----------------
+def get_response(user_input):
+    response = chain.invoke({"input": user_input})
+
+    return response.content
 
 # -------------- ROUTES ---------------
 @app.route("/chat", methods=["POST"])
@@ -48,15 +52,8 @@ def chat():
     try:
         data = request.get_json()
         user_input = data.get("message")
-        
-        history.append(HumanMessage(content=user_input))
 
-        response = chain.invoke({
-            "input": user_input,
-            "history": history
-        })
-
-        history.append(AIMessage(content=response.content))
+        response = get_response(user_input)
 
         return jsonify({"response": response.content})
     

@@ -6,8 +6,6 @@ import "./App.css"
 export default function App() {
 
   // ------------------ STATE ------------------
-
-  // this will allow us to save chat in localStorage so we can continue where we left even when the chat is closed
   const [messages, setMessages] = useState(() => {
     const saved = localStorage.getItem("chat");
     return saved ? JSON.parse(saved) : [];
@@ -50,9 +48,12 @@ export default function App() {
     }
   }
 
-  // ----------------- Effects -----------------
+  const handleClear = () => {
+    setMessages([]);
+    localStorage.removeItem("chat");
+  }
 
-  // this effect stores chat in localStorage on message change
+  // ----------------- Effects -----------------
   useEffect(() => {
     localStorage.setItem("chat", JSON.stringify(messages));
   }, [messages]);
@@ -66,7 +67,7 @@ export default function App() {
     <div className="container">
       <h1 className="title">AI Chat</h1>
 
-      <div className="chat-box"> {/* now messages load directly from localStorage and are not lost when page is refreshed or closed */}
+      <div className="chat-box">
         {messages.map((msg, index) => (
           <div 
             key={index}
@@ -96,6 +97,10 @@ export default function App() {
           {loading ? "Loading....." : "Enter"}
         </button>
       </div>
+
+      <button className="button" onClick={handleClear}>
+        Clear Chat
+      </button>
     </div>
   );
 };

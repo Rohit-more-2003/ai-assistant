@@ -44,32 +44,33 @@ chain = prompt | llm
 
 # -------------- FUNCTIONS -----------------
 def get_response(user_input):
-    response = chain.invoke({"input": user_input})
+    response = chain.invoke({
+            "input": user_input
+        })
 
     return response.content
 
 
 def simpleCalculator(user_input):
+    """This is math tool for given ai"""
     try:
         expression = user_input.replace(" ", "")
 
         if not re.match(r"[^0-9+\-*/().]+$"):
-            return "Invalid Calculation"
+            return None # return None instead of or error string
         
-        # this expression is used so that system only processes math expressions, 
-        # not python internal commands (ex. __import__('os').system('rm -rf /'))
         result = eval(expression, {"__builtins__": None}, {})
-        return f"Result: {result}"
+        return str(result) # for clean response
     
     except:
-        return "Invalid Calculation"
+        return None
 
 # ------------- RESPONSE ROUTING -----------------
 def route_request(user_input):
     """This function decides which tool to use for current task"""
-    # Basic simple math expression
-    if re.match(r"^[0-9+\-*/(). ]+$", user_input):
-        return simpleCalculator(user_input)
+    calc_res = simpleCalculator(user_input)
+    if calc_res is not None:
+        return calc_res # this logic helps to check if input is math expression or not or can we use math tool to solve it, if not -> llm response
 
     return get_response(user_input)
 
@@ -77,11 +78,13 @@ def route_request(user_input):
 @app.route("/chat", methods=["POST"])
 def chat():
     data = request.get_json()
-    user_input = data.get("message", "") # this means that get message if it exists or get default (here "")
+    user_input = data.get("message", "")
 
     response = route_request(user_input)
 
-    return jsonify({"response": response})
+    return jsonify({
+        "response": response
+    })
 
 if __name__ == "__main__":
     app.run(debug=True)

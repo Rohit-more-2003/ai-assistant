@@ -8,6 +8,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 
 from dotenv import load_dotenv
 import os
+import re
 
 # --------------- SETUP ----------------------
 
@@ -47,9 +48,21 @@ def get_response(user_input):
 
     return response.content
 
+
+def simpleCalculator(user_input):
+    try:
+        result = eval(user_input)
+        return result
+    except:
+        return "Invalid Calculation"
+
 # ------------- RESPONSE ROUTING -----------------
 def route_request(user_input):
-    """This function is created so that agent can decide which tool to use (for now: llm_response)"""
+    """This function decides which tool to use for current task"""
+    # Basic simple math expression
+    if re.match(r"^[0-9+\-*/(). ]+$", user_input):
+        return simpleCalculator(user_input)
+
     return get_response(user_input)
 
 # -------------- ROUTES ---------------

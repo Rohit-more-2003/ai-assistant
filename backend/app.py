@@ -51,8 +51,16 @@ def get_response(user_input):
 
 def simpleCalculator(user_input):
     try:
-        result = eval(user_input)
-        return result
+        expression = user_input.replace(" ", "")
+
+        if not re.match(r"[^0-9+\-*/().]+$"):
+            return "Invalid Calculation"
+        
+        # this expression is used so that system only processes math expressions, 
+        # not python internal commands (ex. __import__('os').system('rm -rf /'))
+        result = eval(expression, {"__builtins__": None}, {})
+        return f"Result: {result}"
+    
     except:
         return "Invalid Calculation"
 

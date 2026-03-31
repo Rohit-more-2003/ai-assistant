@@ -36,7 +36,6 @@ llm = ChatGoogleGenerativeAI(
     temperature=0.3
 )
 
-# from_messages specifies that it is chat style prompt
 prompt = ChatPromptTemplate.from_messages([
     ("system", system_prompt),
     ("user", "{input}")
@@ -59,10 +58,10 @@ def simpleCalculator(user_input):
         expression = user_input.replace(" ", "")
 
         if not re.match(r"[^0-9+\-*/().]+$"):
-            return None # return None instead of or error string
+            return None
         
         result = eval(expression, {"__builtins__": None}, {})
-        return str(result) # for clean response
+        return str(result)
     
     except:
         return None
@@ -70,22 +69,20 @@ def simpleCalculator(user_input):
 
 def webSearch(user_input):
     try:
-        # this is the DuckDuckGo Instant Answer API
-        # No API key required, and returns Structured JSON
         url = "https://api.duckduckgo.com/"
         params = {
             "query": user_input,
             "format": "json"
         }
 
-        res = requests.get(url, params=params) # search user input using api and parameters
+        res = requests.get(url, params=params)
         data = res.json()
 
         if data.get("AbstractText"):
-            return data["AbstractText"]  # all abstract text
+            return data["AbstractText"]
         
         elif data.get("RelatedTopics"):
-            topics = data["RelatedTopics"][:3]  # related topics limited to 3
+            topics = data["RelatedTopics"][:3]
             results = []
 
             for t in topics:
@@ -98,20 +95,48 @@ def webSearch(user_input):
         return None
 
 # ------------- RESPONSE ROUTING -----------------
+def shouldUseSearch(user_input):
+    """This function checks if web search tool should be used for given task"""
+    # ------------------ SEARCH TRIGGERS ------------------
+    # Temporal triggers (time-sensitive)
+    TEMPORAL_KEYWORDS = ["latest", "current", "recent", "today", "now","live", "updated", 
+        "newest", "this week", "this month", "2026"]
+
+    # Event-based triggers
+    EVENT_KEYWORDS = ["news", "headlines", "score", "weather", "stock", "price", "exchange rate", "standings"]
+
+    # Action-based triggers
+    ACTION_KEYWORDS = ["search", "find", "lookup", "look up", "check", "verify", "confirm", "research"]
+
+    # Phrase-based triggers
+    PHRASE_KEYWORDS = ["is it true", "what happened", "where can i buy"]
+
+    text = user_input.lower()
+
+    # if any trigger word found return True
+    for word in TEMPORAL_KEYWORDS+EVENT_KEYWORDS+ACTION_KEYWORDS:
+        if word in text:
+            return True
+        
+    for phrase in PHRASE_KEYWORDS:
+        if phrase in text:
+            return True
+        
+    return False # if not, return False
+
+
 def route_request(user_input):
     """This function decides which tool to use for current task"""
     calc_res = simpleCalculator(user_input)
     if calc_res is not None:
         return calc_res
-        
-    search_keywords = ["search", "latest", "news", "when", "what is", "who is"]
-    if any(word in user_input.lower() for word in search_keywords):
+    
+    if shouldUseSearch(user_input):
         search_result = webSearch(user_input)
         
         if search_result:
-            # pass web search result to llm
             combined_input = f"Use this  information:\n{search_result}\n\nAnswer: {user_input}"
-            return get_response(combined_input) # returns llm+web search result
+            return get_response(combined_input)
 
     return get_response(user_input)
 

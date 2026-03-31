@@ -10,6 +10,8 @@ from dotenv import load_dotenv
 import os
 import re
 
+import requests # for web search
+
 # --------------- SETUP ----------------------
 
 load_dotenv()
@@ -42,7 +44,7 @@ prompt = ChatPromptTemplate.from_messages([
 
 chain = prompt | llm
 
-# -------------- FUNCTIONS -----------------
+# -------------- Tools -----------------
 def get_response(user_input):
     response = chain.invoke({
             "input": user_input
@@ -64,13 +66,50 @@ def simpleCalculator(user_input):
     
     except:
         return None
+    
+
+def webSearch(user_input):
+    try:
+        # this is the DuckDuckGo Instant Answer API
+        # No API key required, and returns Structured JSON
+        url = "https://api.duckduckgo.com/"
+        params = {
+            "query": user_input,
+            "format": "json"
+        }
+
+        res = requests.get(url, params=params) # search user input using api and parameters
+        data = res.json()
+
+        if data.get("AbstractText"):
+            return data["AbstractText"]  # all abstract text
+        
+        elif data.get("RelatedTopics"):
+            topics = data["RelatedTopics"][:3]  # related topics limited to 3
+            results = []
+
+            for t in topics:
+                if "Text" in t:
+                    results.append(t["Text"])
+
+            return "\n".join(results)
+
+    except:
+        return None
 
 # ------------- RESPONSE ROUTING -----------------
 def route_request(user_input):
     """This function decides which tool to use for current task"""
     calc_res = simpleCalculator(user_input)
     if calc_res is not None:
-        return calc_res # this logic helps to check if input is math expression or not or can we use math tool to solve it, if not -> llm response
+        return calc_res
+        
+    # basic condition to choose web search tool  
+    if any(word in user_input.lower() for word in ["search", "latest", "news", "when", "what is", "who is"]):
+        search_result = webSearch(user_input)
+        
+        if search_result:
+            return search_result
 
     return get_response(user_input)
 

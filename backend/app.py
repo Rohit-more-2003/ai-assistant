@@ -104,12 +104,14 @@ def route_request(user_input):
     if calc_res is not None:
         return calc_res
         
-    # basic condition to choose web search tool  
-    if any(word in user_input.lower() for word in ["search", "latest", "news", "when", "what is", "who is"]):
+    search_keywords = ["search", "latest", "news", "when", "what is", "who is"]
+    if any(word in user_input.lower() for word in search_keywords):
         search_result = webSearch(user_input)
         
         if search_result:
-            return search_result
+            # pass web search result to llm
+            combined_input = f"Use this  information:\n{search_result}\n\nAnswer: {user_input}"
+            return get_response(combined_input) # returns llm+web search result
 
     return get_response(user_input)
 

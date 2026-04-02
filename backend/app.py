@@ -129,16 +129,30 @@ def route_request(user_input):
     """This function decides which tool to use for current task"""
     calc_res = simpleCalculator(user_input)
     if calc_res is not None:
-        return calc_res
+        return {
+            "type": "tool",
+            "tool": "calculator",
+            "response": calc_res
+        }
     
     if shouldUseSearch(user_input):
         search_result = webSearch(user_input)
         
         if search_result:
             combined_input = f"Use this  information:\n{search_result}\n\nAnswer: {user_input}"
-            return get_response(combined_input)
+            response = get_response(combined_input)
 
-    return get_response(user_input)
+            return {
+                "type": "tool+llm",
+                "tool": "web search",
+                "response": response
+            }
+
+    llm_response = get_response(user_input)
+    return {
+        "type": "llm",
+        "response": llm_response
+    }
 
 # -------------- ROUTES ---------------
 @app.route("/chat", methods=["POST"])
@@ -146,11 +160,9 @@ def chat():
     data = request.get_json()
     user_input = data.get("message", "")
 
-    response = route_request(user_input)
+    result = route_request(user_input)
 
-    return jsonify({
-        "response": response
-    })
+    return jsonify(result)
 
 if __name__ == "__main__":
     app.run(debug=True)

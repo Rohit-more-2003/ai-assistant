@@ -53,7 +53,7 @@ def get_response(user_input):
     return response.content
 
 
-def simpleCalculator(user_input):
+def calculatorTool(user_input):
     """This is math tool and returns only in string format"""
     try:
         expression = user_input.replace(" ", "")
@@ -68,7 +68,7 @@ def simpleCalculator(user_input):
         return None
     
 
-def webSearch(user_input):
+def webSearchTool(user_input):
     """This is web search tool and return response in json format"""
     try:
         url = "https://api.duckduckgo.com/"
@@ -116,18 +116,18 @@ PHRASE_KEYWORDS = ["is it true", "what happened", "where can i buy"]
 TOOLS_DESCRIPTION = """
 You have access to the following tools:
 
-1. simpleCalculator
+1. calculatorTool
     - Use for mathematical expressions
     - Input: a valid math expression(e.g. '2+2', '10//5')
     
-2. webSearch
+2. webSearchTool
     - Use for current events, recent info or factual lookup
     - Use when question involves latest data, news, or verification
 
 Instructions:
     - If a tool is needed, respond only in JSON format:
     {
-        "tool": "simpleCalculator" or "webSearch"
+        "tool": "calculatorTool" or "webSearchTool"
         "input": "user_input"
     }
 
@@ -178,7 +178,7 @@ def route_request(user_input):
     """This function decides which tool to use for current task"""
 
     # 1. calculator (fast rule)
-    calc_res = simpleCalculator(user_input)
+    calc_res = calculatorTool(user_input)
     if calc_res is not None:
         return {
             "type": "tool",
@@ -188,7 +188,7 @@ def route_request(user_input):
     
     # 2. web search (fast filter)
     if shouldUseSearch(user_input):
-        search_result = webSearch(user_input)
+        search_result = webSearchTool(user_input)
         
         if search_result:
             combined_input = f"Use this  information:\n{search_result}\n\nAnswer: {user_input}"
@@ -204,16 +204,16 @@ def route_request(user_input):
     decision = tool_decided_with_llm(user_input)
     tool = decision.get("tool")
 
-    if tool == "simpleCalculator":
-        result = simpleCalculator(decision.get("input", user_input))
+    if tool == "calculatorTool":
+        result = calculatorTool(decision.get("input", user_input))
         if result:
             return {
                 "type": "llm+tool",
                 "tool": "calculator",
                 "response": result
             }
-    elif tool == "webSearch":
-        result = webSearch(decision.get("input", user_input))
+    elif tool == "webSearchTool":
+        result = webSearchTool(decision.get("input", user_input))
         if result:
             return {
                 "type": "llm+tool",

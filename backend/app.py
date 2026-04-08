@@ -161,6 +161,10 @@ def tool_decided_with_llm(user_input):
     decision_prompt = f"""
 {TOOLS_DESCRIPTION}
 
+Important:
+    - Respond ONLY with JSON format
+    - Do not add explanation
+
 User input:
 {user_input}
 """

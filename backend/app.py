@@ -3,8 +3,8 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.prompts import ChatPromptTemplate
+from langchain.tools import tool
 
 from dotenv import load_dotenv
 import os
@@ -44,7 +44,6 @@ prompt = ChatPromptTemplate.from_messages([
 
 chain = prompt | llm
 
-# -------------- Tools -----------------
 def get_response(user_input):
     response = chain.invoke({
             "input": user_input
@@ -53,10 +52,13 @@ def get_response(user_input):
     return response.content
 
 
-def calculatorTool(user_input):
+# -------------- Tools -----------------
+
+@tool
+def calculatorTool(expression: str) -> str:
     """This is math tool and returns only in string format"""
     try:
-        expression = user_input.replace(" ", "")
+        expression = expression.replace(" ", "")
 
         if not re.match(r"[^0-9+\-*/().]+$"):
             return None
@@ -68,12 +70,12 @@ def calculatorTool(user_input):
         return None
     
 
-def webSearchTool(user_input):
+def webSearchTool(query: str) -> str:
     """This is web search tool and return response in json format"""
     try:
         url = "https://api.duckduckgo.com/"
         params = {
-            "query": user_input,
+            "query": query,
             "format": "json"
         }
 
@@ -139,6 +141,7 @@ Instructions:
     
 
 # ------------- RESPONSE ROUTING -----------------
+
 def shouldUseSearch(user_input):
     """This function checks if web search tool should be used for given task"""
     text = user_input.lower()
@@ -178,59 +181,47 @@ User input:
         return {"tool": "none"}
 
 
-def route_request(user_input):
-    """This function decides which tool to use for current task"""
+# ----------- AGENT EXECUTION -----------
 
-    # 1. calculator (fast rule)
-    calc_res = calculatorTool(user_input)
-    if calc_res is not None:
+# ----- TOOL BINDING -----
+tools = [calculatorTool, webSearchTool]
+llm_with_tools = llm.bind_tools(tools)
+
+def agent_execution(user_input):
+    response = llm_with_tools.invoke(user_input)
+
+    # If tool is called
+    if response.tool_calls:
+        tool_call = response.tool_calls[0]
+
+        tool_name = tool_call["name"]
+        tool_input = tool_call["args"]
+
+        if tool_name == "calculatorTool":
+            result = calculatorTool.invoke(tool_input)
+        elif tool_name == "webSearchTool":
+            result = webSearchTool.invoke(tool_input)
+        else:
+            result = "Unknown tool"
+
+        # Pass final result back to LLM
+        final_response = llm_with_tools.invoke(
+            f"Tool result: {result} \n\n Answer the user question: {user_input}"
+        )
+
         return {
-            "type": "tool",
-            "tool": "calculator",
-            "response": calc_res
+            "type": "tool+llm",
+            "tool": tool_name,
+            "response": final_response.content
         }
     
-    # 2. web search (fast filter)
-    if shouldUseSearch(user_input):
-        search_result = webSearchTool(user_input)
-        
-        if search_result:
-            combined_input = f"Use this  information:\n{search_result}\n\nAnswer: {user_input}"
-            response = get_response(combined_input)
-
-            return {
-                "type": "tool+llm",
-                "tool": "web search",
-                "response": response
-            }
-        
-    # 3. LLM decides tool (for complex cases)
-    decision = tool_decided_with_llm(user_input)
-    tool = decision.get("tool")
-
-    if tool == "calculatorTool":
-        result = calculatorTool(decision.get("input", user_input))
-        if result:
-            return {
-                "type": "llm+tool",
-                "tool": "calculator",
-                "response": result
-            }
-    elif tool == "webSearchTool":
-        result = webSearchTool(decision.get("input", user_input))
-        if result:
-            return {
-                "type": "llm+tool",
-                "tool": "web search",
-                "response": result
-            }
-
-    # 4. Default
-    llm_response = get_response(user_input)
+    # If no tool used
     return {
-        "type": "llm",
-        "response": llm_response
+        "type": llm,
+        "response": response.content
     }
+
+
 
 # -------------- ROUTES ---------------
 @app.route("/chat", methods=["POST"])
@@ -238,7 +229,7 @@ def chat():
     data = request.get_json()
     user_input = data.get("message", "")
 
-    result = route_request(user_input)
+    result = agent_execution(user_input)
 
     return jsonify(result)
 

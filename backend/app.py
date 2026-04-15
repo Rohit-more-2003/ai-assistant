@@ -1,17 +1,20 @@
 # -------------- IMPORTS ----------------
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.tools import tool
+from langchain_core.messages import HumanMessage, AIMessage
 
 from dotenv import load_dotenv
 import os
 import re
 import json
 
-import requests # for web search
+import requests
+
 
 # --------------- SETUP ----------------------
 
@@ -30,7 +33,9 @@ system_prompt = """
     Add references to the website if necessary.
 """
 
+
 # --------------- LLM -----------------
+
 llm = ChatGoogleGenerativeAI(
     model=llm_model,
     google_api_key=gemini_key,
@@ -39,17 +44,9 @@ llm = ChatGoogleGenerativeAI(
 
 prompt = ChatPromptTemplate.from_messages([
     ("system", system_prompt),
+    MessagesPlaceholder("history"),
     ("user", "{input}")
 ])
-
-chain = prompt | llm
-
-def get_response(user_input):
-    response = chain.invoke({
-            "input": user_input
-        })
-
-    return response.content
 
 
 # -------------- Tools -----------------
@@ -70,6 +67,7 @@ def calculatorTool(expression: str) -> str:
         return None
     
 
+@tool
 def webSearchTool(query: str) -> str:
     """This is web search tool and return response in json format"""
     try:
@@ -97,6 +95,7 @@ def webSearchTool(query: str) -> str:
 
     except:
         return None
+    
     
 # ----------------- ROUTING COMPONENTS ----------------
 
@@ -179,18 +178,37 @@ User input:
         return decision
     except:
         return {"tool": "none"}
+    
+
+# ----------- Memory/Chat History ---------------
+
+def format_history(history):
+    """Returns history as chatbot history sepered wrt role"""
+    formatted = []
+
+    for msg in history:
+        if msg["role"] == "user":
+            formatted.append(HumanMessage(content=msg["content"]))
+        elif msg["role"] == "ai":
+            formatted.append(AIMessage(content=msg["content"]))
+
+    return formatted
 
 
-# ----------- AGENT EXECUTION -----------
+# -------------- AGENT EXECUTION -----------------
 
 # ----- TOOL BINDING -----
 tools = [calculatorTool, webSearchTool]
 llm_with_tools = llm.bind_tools(tools)
 
-def agent_execution(user_input):
-    response = llm_with_tools.invoke(user_input)
+def agent_execution(user_input, history):
+    chain = prompt | llm_with_tools
 
-    # If tool is called
+    response = chain.invoke({
+        "input": user_input,
+        "history": history
+    })
+    
     if response.tool_calls:
         tool_call = response.tool_calls[0]
 
@@ -203,11 +221,12 @@ def agent_execution(user_input):
             result = webSearchTool.invoke(tool_input)
         else:
             result = "Unknown tool"
-
-        # Pass final result back to LLM
-        final_response = llm_with_tools.invoke(
-            f"Tool result: {result} \n\n Answer the user question: {user_input}"
-        )
+        
+        final_response = chain.invoke({
+            "input": f"Tool result: {result}",
+            "history": history # contains latest user input too
+        })
+        
 
         return {
             "type": "tool+llm",
@@ -215,21 +234,25 @@ def agent_execution(user_input):
             "response": final_response.content
         }
     
-    # If no tool used
     return {
-        "type": llm,
+        "type": "llm",
         "response": response.content
     }
 
 
 
 # -------------- ROUTES ---------------
+
 @app.route("/chat", methods=["POST"])
 def chat():
     data = request.get_json()
-    user_input = data.get("message", "")
 
-    result = agent_execution(user_input)
+    user_input = data.get("message", "")
+    history = data.get("history", [])
+
+    formatted_history = format_history(history)
+
+    result = agent_execution(user_input, formatted_history)
 
     return jsonify(result)
 

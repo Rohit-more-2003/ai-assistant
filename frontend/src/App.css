@@ -1,56 +1,82 @@
+/* Container */
 .container{
-    max-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    font-family: Arial, Helvetica, sans-serif;
+    width: 60vw;
+    margin: auto;
     padding: 20px;
+    font-family: Arial, Helvetica, sans-serif;
 }
 
-.title{
-    font-size: 28px;
-    margin-bottom: 20px;
-    align-items: center; /* by default for vertical, but if flex-direction is column, then for horizontal */
-    text-align: center;
+/* Header */
+.header{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
+.clear-btn{
+    padding: 5px 10px;
+    cursor: pointer;
+}
+    
+/* Chat-Box */
 .chat-box{
-    flex: 1;
+    height: 70vh;
     overflow-y: auto;
+    border: 1px solid #ccc;
+    padding: 10px;
+    margin-top: 10px;
+}
+
+/* Messages */
+.message{
+    margin: 10px 0;
     display: flex;
     flex-direction: column;
-    padding: 10px;
-    border: 1px solid #ccc;
 }
 
-.message{
+.message-user{
+    align-items: flex-end;
+}
+
+.message-ai{
+    align-items: flex-start;
+}
+
+/* Chat Bubbles */
+.bubble{
     padding: 10px;
-    margin-bottom: 10px;
     border-radius: 10px;
-    max-width: 60%;
+    max-width: 70%;
 }
 
-.userMessage{
-    background-color: #d1e7ff;
-    align-self: flex-end;
+.user .bubble{
+    background-color: #007bff;
+    color: white;
 }
 
-.aiMessage{
-    background-color: #e2e2e2;
-    align-self: flex-start;
+.ai .bubble{
+    background-color: #f1f1f1;
 }
 
+/* Tool Tag */
+.tool-tag{
+    font-size: 12px;
+    margin-top: 3px;
+    color: gray;
+}
+
+/* Input Row */
 .input-row{
     display: flex;
     margin-top: 10px;
-    width: 80vw;
 }
 
-.input{
-    float: 1;
+.input-row input{
+    flex: 1;
     padding: 10px;
 }
 
-.button{
-    padding: 10px;
+.input-row button{
     margin-left: 10px;
+    padding: 10px;
 }

@@ -127,7 +127,7 @@ export default function App() {
         />
         <button onClick={handleSend}>Send</button>
       </div>
-      
+
     </div>
   );
 };

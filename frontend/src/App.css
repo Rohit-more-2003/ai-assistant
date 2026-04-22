@@ -34,11 +34,11 @@
     flex-direction: column;
 }
 
-.message-user{
+.message.user{
     align-items: flex-end;
 }
 
-.message-ai{
+.message.ai{
     align-items: flex-start;
 }
 

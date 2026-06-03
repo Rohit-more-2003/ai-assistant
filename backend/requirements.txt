@@ -1,3 +1,6 @@
 python_dotenv
 langchain
 langchain_google_genai
+flask
+flask-cors
+tavily-python

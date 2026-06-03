@@ -6,14 +6,12 @@ from flask_cors import CORS
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.tools import tool
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from langchain_community.tools.tavily_search import TavilySearchResults
 
 from dotenv import load_dotenv
 import os
 import re
-import json
-
-import requests
 
 
 # --------------- SETUP ----------------------
@@ -21,16 +19,17 @@ import requests
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app=app)   
+CORS(app=app)
 
 gemini_key = os.getenv("GEMINI_API_KEY")
-llm_model = "gemini-2.5-flash-lite"
+llm_model = "gemini-2.5-flash"
 
 system_prompt = """
-    You are a helpful AI assistant.
-    Give clear, concise, and accurate answers.
-    Keep responses short and easy to understand.
-    Add references to the website if necessary.
+    You are an autonomous AI assistant that provides detailed and interconnected information. 
+    When given a sequence of related concepts, explain each concept and then draw a logical connection between them, 
+    elaborating on their relationship. 
+    Prioritize historical, scientific, or cultural links. 
+    Keep responses informative and flowing and keep the answer between 0-10 lines.
 """
 
 
@@ -53,137 +52,59 @@ prompt = ChatPromptTemplate.from_messages([
 
 @tool
 def calculatorTool(expression: str) -> str:
-    """This is math tool and returns only in string format"""
+    """Evaluate a mathematical expression with operators like +, -, *, /, ().
+    Only use for expressions with actual numbers, not word problems."""
+
     try:
         expression = expression.replace(" ", "")
 
-        if not re.match(r"[^0-9+\-*/().]+$"):
-            return None
-        
+        if not re.match(r"^[0-9+\-*/().]+$", expression):
+            return "Invalid Calculation"
+
         result = eval(expression, {"__builtins__": None}, {})
         return str(result)
-    
+
     except:
-        return None
-    
+        return "Calculation error"
+
 
 @tool
 def webSearchTool(query: str) -> str:
-    """This is web search tool and return response in json format"""
-    try:
-        url = "https://api.duckduckgo.com/"
-        params = {
-            "query": query,
-            "format": "json"
-        }
-
-        res = requests.get(url, params=params)
-        data = res.json()
-
-        if data.get("AbstractText"):
-            return data["AbstractText"]
-        
-        elif data.get("RelatedTopics"):
-            topics = data["RelatedTopics"][:3]
-            results = []
-
-            for t in topics:
-                if "Text" in t:
-                    results.append(t["Text"])
-
-            return "\n".join(results)
-
-    except:
-        return None
-    
-    
-# ----------------- ROUTING COMPONENTS ----------------
-
-# --------- SEARCH TRIGGERS ---------
-# Temporal triggers (time-sensitive)
-TEMPORAL_KEYWORDS = ["latest", "current", "recent", "today", "now","live", "updated", 
-    "newest", "this week", "this month", "2026"]
-
-# Event-based triggers
-EVENT_KEYWORDS = ["news", "headlines", "score", "weather", "stock", "price", "exchange rate", "standings"]
-
-# Action-based triggers
-ACTION_KEYWORDS = ["search", "find", "lookup", "look up", "check", "verify", "confirm", "research"]
-
-# Phrase-based triggers
-PHRASE_KEYWORDS = ["is it true", "what happened", "where can i buy"]
-
-# ------- TOOL DEFINITION FOR LLM -------
-TOOLS_DESCRIPTION = """
-You have access to the following tools:
-
-1. calculatorTool
-    - Use for mathematical expressions
-    - Input: a valid math expression(e.g. '2+2', '10//5')
-    
-2. webSearchTool
-    - Use for current events, recent info or factual lookup
-    - Use when question involves latest data, news, or verification
-
-Instructions:
-    - If a tool is needed, respond only in JSON format:
-    {
-        "tool": "calculatorTool" or "webSearchTool"
-        "input": "user_input"
-    }
-
-    - If no tool is needed, respond:
-    {
-        "tool": "none"
-    }
-"""
-    
-
-# ------------- RESPONSE ROUTING -----------------
-
-def shouldUseSearch(user_input):
-    """This function checks if web search tool should be used for given task"""
-    text = user_input.lower()
-
-    # if any trigger word found return True
-    for word in TEMPORAL_KEYWORDS+EVENT_KEYWORDS+ACTION_KEYWORDS:
-        if word in text:
-            return True
-        
-    for phrase in PHRASE_KEYWORDS:
-        if phrase in text:
-            return True
-        
-    return False # if not, return False
-
-
-def tool_decided_with_llm(user_input):
-    """This is llm decision function which tool is to be used"""
-
-    decision_prompt = f"""
-{TOOLS_DESCRIPTION}
-
-Important:
-    - Respond ONLY with JSON format
-    - Do not add explanation
-
-User input:
-{user_input}
-"""
-    
-    response = llm.invoke(decision_prompt)
+    """Search the web for current events, news, or facts you don't already know.
+    Do NOT use for general knowledge, definitions, or simple math."""
 
     try:
-        decision = json.loads(response.content)
-        return decision
-    except:
-        return {"tool": "none"}
-    
+        tavily = TavilySearchResults(
+            max_results=3,
+            tavily_api_key=os.getenv("TAVILY_API_KEY")
+        )
+
+        results = tavily.invoke(query)
+
+        if not results:
+            return "No results found"
+
+        formatted = []
+        for r in results:
+            url = r.get("url", "")
+            content = r.get("content", "").strip()
+            formatted.append(f"Source: {url}\n{content}")
+
+        return "\n\n---\n\n".join(formatted)
+
+    except Exception as e:
+        # FIX 1: Print full error to terminal so you can see what's going wrong
+        print(f"[webSearchTool ERROR]: {str(e)}")
+        raise   # Re-raise so agent_execution catches it and returns a proper error
+
 
 # ----------- Memory/Chat History ---------------
 
 def format_history(history):
-    """Returns history as chatbot history sepered wrt role"""
+    """Converts frontend message list to LangChain message objects.
+    Frontend sends history WITHOUT the current user message,
+    so no stripping needed here.
+    """
     formatted = []
 
     for msg in history:
@@ -195,50 +116,103 @@ def format_history(history):
     return formatted
 
 
+# -------------- HELPERS -----------------
+
+def extract_text(content) -> str:
+    """FIX 2: Gemini 2.5 Flash with thinking mode returns .content as a LIST
+    of parts (thinking block + text block) instead of a plain string.
+    This extracts only the final text part, ignoring thinking tokens.
+    """
+    if isinstance(content, str):
+        return content
+
+    if isinstance(content, list):
+        # Each part has a 'type' — we want 'text', not 'thinking'
+        for part in content:
+            if isinstance(part, dict) and part.get("type") == "text":
+                return part.get("text", "")
+        # Fallback: join all string parts
+        return " ".join(p.get("text", "") for p in content if isinstance(p, dict))
+
+    return str(content)
+
+
 # -------------- AGENT EXECUTION -----------------
 
-# ----- TOOL BINDING -----
 tools = [calculatorTool, webSearchTool]
 llm_with_tools = llm.bind_tools(tools)
 
+TOOL_MAP = {
+    "calculatorTool": calculatorTool,
+    "webSearchTool": webSearchTool,
+}
+
+
 def agent_execution(user_input, history):
-    chain = prompt | llm_with_tools
+    try:
+        chain = prompt | llm_with_tools
 
-    response = chain.invoke({
-        "input": user_input,
-        "history": history
-    })
-    
-    if response.tool_calls:
-        tool_call = response.tool_calls[0]
-
-        tool_name = tool_call["name"]
-        tool_input = tool_call["args"]
-
-        if tool_name == "calculatorTool":
-            result = calculatorTool.invoke(tool_input)
-        elif tool_name == "webSearchTool":
-            result = webSearchTool.invoke(tool_input)
-        else:
-            result = "Unknown tool"
-        
-        final_response = chain.invoke({
-            "input": f"Tool result: {result}",
-            "history": history # contains latest user input too
+        response = chain.invoke({
+            "input": user_input,
+            "history": history
         })
-        
+
+        if response.tool_calls:
+            tool_call = response.tool_calls[0]
+            tool_name = tool_call["name"]
+            tool_input = tool_call["args"]
+
+            selected_tool = TOOL_MAP.get(tool_name)
+
+            try:
+                result = selected_tool.invoke(tool_input) if selected_tool else "Unknown tool"
+            except Exception as tool_err:
+                # FIX 1: Tool failed — return a clean user-facing error immediately
+                # instead of passing the error string to the LLM (which causes blank output)
+                print(f"[Tool execution ERROR]: {str(tool_err)}")
+                return {
+                    "type": "tool+llm",
+                    "tool": tool_name,
+                    "response": f"Sorry, the {tool_name} encountered an error: {str(tool_err)}. Please try again."
+                }
+
+            context_message = (
+                f"The user asked: {user_input}\n\n"
+                f"You used the {tool_name} and got this result:\n{result}\n\n"
+                f"Now answer the user's question based on this information."
+            )
+
+            follow_up_messages = (
+                [SystemMessage(content=system_prompt)]
+                + history
+                + [HumanMessage(content=context_message)]
+            )
+
+            final_response = llm.invoke(follow_up_messages)
+
+            # FIX 2: Extract plain text from response (handles thinking mode list content)
+            response_text = extract_text(final_response.content)
+
+            return {
+                "type": "tool+llm",
+                "tool": tool_name,
+                "response": response_text
+            }
+
+        # FIX 2: Also extract text for direct LLM responses
+        response_text = extract_text(response.content)
 
         return {
-            "type": "tool+llm",
-            "tool": tool_name,
-            "response": final_response.content
+            "type": "llm",
+            "response": response_text
         }
-    
-    return {
-        "type": "llm",
-        "response": response.content
-    }
 
+    except Exception as e:
+        print(f"[agent_execution ERROR]: {str(e)}")
+        return {
+            "type": "error",
+            "response": "Something went wrong on the server. Please try again."
+        }
 
 
 # -------------- ROUTES ---------------

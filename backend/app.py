@@ -55,17 +55,26 @@ def calculatorTool(expression: str) -> str:
     """Evaluate a mathematical expression with operators like +, -, *, /, ().
     Only use for expressions with actual numbers, not word problems."""
 
+    # ---- FIX #3: Replaced bare `except` with specific exceptions ----
+    # Before: except: return "Calculation error"
+    # After:  catch only the errors eval() can realistically raise,
+    #         log them, and return a descriptive message to the caller.
     try:
         expression = expression.replace(" ", "")
 
         if not re.match(r"^[0-9+\-*/().]+$", expression):
-            return "Invalid Calculation"
+            return "Invalid expression: only numbers and operators (+, -, *, /, ()) are allowed."
 
         result = eval(expression, {"__builtins__": None}, {})
         return str(result)
 
-    except:
-        return "Calculation error"
+    except ZeroDivisionError:
+        print("[calculatorTool ERROR]: Division by zero")
+        return "Calculation error: division by zero."
+
+    except (SyntaxError, ValueError) as e:
+        print(f"[calculatorTool ERROR]: {e}")
+        return f"Calculation error: invalid expression — {e}"
 
 
 @tool
@@ -93,7 +102,6 @@ def webSearchTool(query: str) -> str:
         return "\n\n---\n\n".join(formatted)
 
     except Exception as e:
-        # FIX 1: Print full error to terminal so you can see what's going wrong
         print(f"[webSearchTool ERROR]: {str(e)}")
         raise   # Re-raise so agent_execution catches it and returns a proper error
 
@@ -119,7 +127,7 @@ def format_history(history):
 # -------------- HELPERS -----------------
 
 def extract_text(content) -> str:
-    """FIX 2: Gemini 2.5 Flash with thinking mode returns .content as a LIST
+    """Gemini 2.5 Flash with thinking mode returns .content as a LIST
     of parts (thinking block + text block) instead of a plain string.
     This extracts only the final text part, ignoring thinking tokens.
     """
@@ -127,11 +135,9 @@ def extract_text(content) -> str:
         return content
 
     if isinstance(content, list):
-        # Each part has a 'type' — we want 'text', not 'thinking'
         for part in content:
             if isinstance(part, dict) and part.get("type") == "text":
                 return part.get("text", "")
-        # Fallback: join all string parts
         return " ".join(p.get("text", "") for p in content if isinstance(p, dict))
 
     return str(content)
@@ -167,8 +173,6 @@ def agent_execution(user_input, history):
             try:
                 result = selected_tool.invoke(tool_input) if selected_tool else "Unknown tool"
             except Exception as tool_err:
-                # FIX 1: Tool failed — return a clean user-facing error immediately
-                # instead of passing the error string to the LLM (which causes blank output)
                 print(f"[Tool execution ERROR]: {str(tool_err)}")
                 return {
                     "type": "tool+llm",
@@ -189,8 +193,6 @@ def agent_execution(user_input, history):
             )
 
             final_response = llm.invoke(follow_up_messages)
-
-            # FIX 2: Extract plain text from response (handles thinking mode list content)
             response_text = extract_text(final_response.content)
 
             return {
@@ -199,7 +201,6 @@ def agent_execution(user_input, history):
                 "response": response_text
             }
 
-        # FIX 2: Also extract text for direct LLM responses
         response_text = extract_text(response.content)
 
         return {

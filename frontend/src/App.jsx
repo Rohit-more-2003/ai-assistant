@@ -35,13 +35,14 @@ export default function App() {
 
   // ------------------ FUNCTIONS ------------------
   const handleSend = async () => {
+    // ---- FIX #12: `loading` check already existed; added `disabled` on the
+    //      button itself (see JSX below) so it is visually + functionally blocked.
     if (!input.trim() || loading) return;
 
     const userMessage = { role: "user", content: input.trim() };
 
-    // FIX: snapshot history BEFORE adding current user message.
-    // This is sent as "history" to the backend so the current user
-    // message is not duplicated (it's already sent separately as "message").
+    // Snapshot history BEFORE adding current user message so the backend
+    // does not receive the current turn twice.
     const historyBeforeThisTurn = [...messages];
 
     setMessages(prev => [...prev, userMessage]);
@@ -55,19 +56,27 @@ export default function App() {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          message: userMessage.content,       // current user input
-          history: historyBeforeThisTurn      // past messages only, no duplicate
+          message: userMessage.content,
+          history: historyBeforeThisTurn
         })
       });
 
       const data = await res.json();
 
+      // ---- FIX #9: Guard against missing / falsy `data.response` ----
+      // Before: content: data.response  →  could be undefined, null, or ""
+      // After:  fall back to a user-facing message so the bubble is never blank.
+      const responseText =
+        data?.response && typeof data.response === "string" && data.response.trim()
+          ? data.response.trim()
+          : "No response received. Please try again.";
+
       setMessages(prev => [
         ...prev,
         {
           role: "ai",
-          content: data.response,
-          tool: data.tool || null
+          content: responseText,
+          tool: data?.tool || null
         }
       ]);
     } catch (err) {
@@ -134,7 +143,13 @@ export default function App() {
           placeholder="Type a message..."
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
         />
-        <button onClick={handleSend}>Send</button>
+
+        {/* ---- FIX #12: `disabled` prop prevents clicks AND triggers browser/CSS
+              disabled styling automatically. The label also shifts to "..." so the
+              user gets visual feedback that a request is in flight. ---- */}
+        <button onClick={handleSend} disabled={loading}>
+          {loading ? "..." : "Send"}
+        </button>
       </div>
 
     </div>
